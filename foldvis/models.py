@@ -1,11 +1,16 @@
 from copy import copy
+import io
+import json
 from pathlib import Path
+import re
 from typing import Union
 
 from Bio import PDB
 from Bio.PDB.Structure import Structure
+import numpy as np
 
-from foldvis.io import read_alphafold
+from foldvis.utils import align_structures
+from foldvis.io import save_pdb
 
 
 class Fold():
@@ -53,6 +58,10 @@ class Fold():
         self.scores = d
         return None
 
+    def to_stream(self):
+        stream = io.StringIO()
+        return save_pdb(self.structure, stream).getvalue()
+
 
 class AlphaFold():
     '''
@@ -63,7 +72,58 @@ class AlphaFold():
         self.models = {}
         self.workdir = workdir
 
-        for n, i in enumerate(read_alphafold(indir, workdir)):
+        for n, i in enumerate(self.read_alphafold(indir, workdir)):
             self.models[n+1] = i
         
         return None
+
+
+    def read_alphafold(self, filedir, outdir=None):
+        '''
+        Load structures and (quality) scores, align them, and put prepare data
+        for visualization.
+        '''
+        files = Path(filedir).glob('*.pdb')
+        d = {}
+    
+        # Load scores
+        for i in files:
+            model = int(re.match(r'.*model_(\d).pdb', i.name).group(1))
+            fp = str(i.resolve())
+            fp = fp.replace(f'{model}.pdb', f'{model}_scores.json')
+            
+            with open(fp, 'r') as file:
+                scores = json.load(file)
+           
+            fold = Fold(i)
+            _ = fold.add_scores(scores)
+    
+            v = np.mean(scores['plddt'])
+            d[fold] = v
+    
+        # Rank models by pLDDT, best is reference
+        ref, *queries = [i for i, j in sorted(d.items(), key=lambda x: x[1], reverse=True)]
+
+        # Align into the same space
+        rest = []
+        for qry, chain in zip(queries, 'BCDE'):
+            trx = qry.align_to(ref)
+            trx.rename_chains_({'A': chain})
+            rest.append(trx)
+    
+        if outdir:
+            outdir = Path(outdir)
+            
+            if not outdir.exists():
+                outdir.mkdir(parents=True)
+    
+            name = ref.path.name.replace('.pdb', '.reference.pdb')
+            _ = save_pdb(ref.structure, outdir / name)
+    
+            for qry in rest:
+                name = qry.path.name.replace('.pdb', '.transform.pdb')
+                _ = save_pdb(qry.structure, outdir / name)
+    
+        return [ref] + rest
+
+
