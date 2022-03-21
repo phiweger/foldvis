@@ -1,4 +1,4 @@
-from copy import copy
+from copy import deepcopy
 import io
 import json
 from pathlib import Path
@@ -18,11 +18,18 @@ class Fold():
         self.structure = self.read_pdb(fp)
         self.path = Path(fp)
         self.transformed = False
-        self.scores = {}
+        self.annotation = {}
+
+        ln = len(list(self.structure.get_residues()))
+        self.annotate_('position', [i+1 for i in range(ln)])
         return None
 
     def __repr__(self):
         return 'Fold loaded from ' + self.path.name
+
+    def __len__(self):
+        '''Number of amino acids in the sequence'''
+        return len(list(self.structure.get_residues()))
 
     def read_pdb(self, fp: Union[str, Path], name: str='x') -> Structure:
         fp = Path(fp)
@@ -31,9 +38,9 @@ class Fold():
         structure = pdb_parser.get_structure(name, str(fp))
         return structure
 
-    def align_to(self, ref):
-        rot, tra = align_structures(ref.path, self.path)
-        cp = copy(self)
+    def align_to(self, ref, mode=0, minscore=0.5):
+        rot, tra = align_structures(ref.path, self.path, mode=mode, minscore=minscore)
+        cp = deepcopy(self)
         cp.structure.transform(rot, tra)
         cp.transformed = True
         return cp
@@ -54,13 +61,20 @@ class Fold():
                     print(f'Keeping chain name {old_name}, no new name found')
         return None
 
-    def add_scores(self, d):
-        self.scores = d
-        return None
+    # def add_scores(self, d):
+    #     for k, v in d.items():
+    #         self.scores[k] = v        
+    #     return None
 
     def to_stream(self):
         stream = io.StringIO()
         return save_pdb(self.structure, stream).getvalue()
+
+    def annotate_(self, key, values, check=False):
+        if check:
+            assert len(values) == len(self)
+        self.annotation[key] = values
+        return None
 
 
 class AlphaFold():
@@ -96,7 +110,7 @@ class AlphaFold():
                 scores = json.load(file)
            
             fold = Fold(i)
-            _ = fold.add_scores(scores)
+            _ = fold.annotate_('plddt', scores['plddt'])
     
             v = np.mean(scores['plddt'])
             d[fold] = v

@@ -1,3 +1,5 @@
+from itertools import combinations
+from math import log, e
 from pathlib import Path
 import subprocess
 from typing import Union
@@ -44,7 +46,7 @@ def rmdir(directory):
     directory.rmdir()
 
 
-def align_structures(target: Structure, query: Structure):
+def align_structures(target: Structure, query: Structure, mode=0, minscore=0.5):
     '''
     PyMOL just wraps programs as well:
 
@@ -63,14 +65,30 @@ def align_structures(target: Structure, query: Structure):
     one into the other:
 
     https://github.com/steineggerlab/foldseek/issues/13
+
+    mode:
+
+    --cov-mode INT
+
+    0: coverage of query and target
+    1: coverage of target
+    2: coverage of query
+    3: target seq. length has to be at least x% of query length
+    4: query seq. length has to be at least x% of target length
+    5: short seq. needs to be at least x% of the other seq. length [0]
+
+    --tmscore-threshold [0.5]
+    accept alignments with a tmsore > thr [0.0,1.0] [0.500]
     '''
     tmp = tempfile.TemporaryDirectory()
     p = tmp.name
 
+    print(f'Mode {mode}, min. Tm score {minscore}')
+
     steps = [
         f'foldseek createdb {target} {p}/targetDB',
         f'foldseek createdb {query} {p}/queryDB',
-        f'foldseek search {p}/queryDB {p}/targetDB {p}/aln {p}/tmp -a',
+        f'foldseek search {p}/queryDB {p}/targetDB {p}/aln {p}/tmp -a --cov-mode {mode} --tmscore-threshold {minscore}',
         f'foldseek aln2tmscore {p}/queryDB {p}/targetDB {p}/aln {p}/aln_tmscore',
         f'foldseek createtsv {p}/queryDB {p}/targetDB {p}/aln_tmscore {p}/aln_tmscore.tsv'
     ]
@@ -81,6 +99,7 @@ def align_structures(target: Structure, query: Structure):
     with open(f'{p}/aln_tmscore.tsv', 'r') as file:
         qry, rest = next(file).strip().split('\t')
         ref, score, *rest = rest.split(' ')
+        print(f'Tm-score: {score}')
         rest = [float(i) for i in rest]
         translation = rest[:3]
         rotation = list(chunks(rest[3:], 3))
@@ -97,4 +116,57 @@ def transform_(structure: Structure, translation: np.ndarray, rotation: np.ndarr
     for i in structure.get_atoms():
         i.transform(rotation, translation)
     return None
+
+
+def entropy(labels, base=None):
+    '''
+    Computes entropy of label distribution.
+
+    https://stackoverflow.com/questions/15450192/fastest-way-to-compute-entropy-in-python
+
+    nextstrain uses entropy:
+
+    https://docs.nextstrain.org/en/latest/guides/share/download-data.html#diversity-entropy-data
+    '''
+
+    n_labels = len(labels)
+
+    if n_labels <= 1:
+      return 0
+
+    value,counts = np.unique(labels, return_counts=True)
+    probs = counts / n_labels
+    n_classes = np.count_nonzero(probs)
+
+    if n_classes <= 1:
+      return 0
+
+    ent = 0.
+
+    # Compute entropy
+    base = e if base is None else base
+    for i in probs:
+      ent -= i * log(i, base)
+
+    return ent
+
+
+def mean_pairwise_similarity(labels):
+    '''
+    Geneious calculates "Identity" as "Mean pairwise identity over all pairs
+    in the column." (hover over "Identity" after loading a MSA).
+
+    See also discussions here:
+
+    - https://www.biostars.org/p/3856/
+    - https://www.biostars.org/p/5067/
+    - https://www.biostars.org/p/223824/
+
+    For en extensive review:
+
+    - https://onlinelibrary.wiley.com/doi/abs/10.1002/prot.10146
+    '''
+    l = [1 if i == j else 0 for i, j in combinations(labels, 2)]
+    return round(sum(l) / len(l), 4)
+
 
