@@ -1,7 +1,7 @@
 ## Foldvis
 
 
-<img src="img/rabbit.png" alt="A rabbit" width="150" align="right">
+<img src="img/rabbit.png" alt="A rabbit" width="150" align="center">
 
 Protein visualization without the pain. `Foldvis` currently supports `jupyter notebook`-based exploration of:
 
