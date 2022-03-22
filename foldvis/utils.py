@@ -99,10 +99,19 @@ def align_structures(target: Structure, query: Structure, mode=0, minscore=0.5):
     with open(f'{p}/aln_tmscore.tsv', 'r') as file:
         qry, rest = next(file).strip().split('\t')
         ref, score, *rest = rest.split(' ')
-        print(f'Tm-score: {score}')
+        print(f'Tm-score: {round(float(score), 4)}')
         rest = [float(i) for i in rest]
+        # translation = rest[:3]
         translation = rest[:3]
+        # translation = [-1*i for i in rest[:3]][::-1]
+        # translation[0] = translation[0]* -1
+        # translation[1] = translation[1]* -1  # good
+        # translation[2] = translation[2] * -1
+
+        # TODO: -1 much better
+        # translation = [-1*i for i in rest[:3]][::-1]
         rotation = list(chunks(rest[3:], 3))
+        print(rotation, translation)
 
     tmp.cleanup()
 
