@@ -75,7 +75,9 @@ view.show()
 ```
 
 
-![](img/overlay.png)
+<p align="center">
+    <img src="img/overlay.png" width="250">
+</p>
 
 
 ```python
@@ -89,7 +91,9 @@ view.show()
 ```
 
 
-![](img/alphafold.png)
+<p align="center">
+    <img src="img/alphafold.png" width="250">
+</p>
 
 
 ```python
@@ -105,7 +109,10 @@ view.show()
 ```
 
 
-![](img/NtoC.png)
+<p align="center">
+    <img src="img/NtoC.png" width="250">
+</p>
+
 
 
 ```python
@@ -120,7 +127,9 @@ view.show()
 ```
 
 
-![](img/variation.png)
+<p align="center">
+    <img src="img/variation.png" width="250">
+</p>
 
 
 ### TODOs
