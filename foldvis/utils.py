@@ -46,7 +46,80 @@ def rmdir(directory):
     directory.rmdir()
 
 
-def align_structures(target: Structure, query: Structure, mode=0, minscore=0.5):
+'''
+OMG getting this right took me forever, so some more comments on how to align
+two protein structures.
+
+Foldseek follows the same format as TM-align; checking both programs on the same
+input results in nearly identical results -- examples from:
+
+https://github.com/steineggerlab/foldseek/tree/master/data
+
+TMalign d1asha.pdb d1jl7a.pdb -m matrix.txt
+
+ **************************************************************************
+ *                        TM-align (Version 20170708)                     *
+ * An algorithm for protein structure alignment and comparison            *
+ * Based on statistics:                                                   *
+ *       0.0 < TM-score < 0.30, random structural similarity              *
+ *       0.5 < TM-score < 1.00, in about the same fold                    *
+ * Reference: Y Zhang and J Skolnick, Nucl Acids Res 33, 2302-9 (2005)    *
+ * Please email your comments and suggestions to: zhng@umich.edu          *
+ **************************************************************************
+
+Name of Chain_1: d1asha.pdb
+Name of Chain_2: d1jl7a.pdb
+Length of Chain_1:  147 residues
+Length of Chain_2:  147 residues
+
+Aligned length=  138, RMSD=   2.54, Seq_ID=n_identical/n_aligned= 0.138
+TM-score= 0.75831 (if normalized by length of Chain_1)
+TM-score= 0.75831 (if normalized by length of Chain_2)
+(You should use TM-score normalized by length of the reference protein)
+
+(":" denotes aligned residue pairs of d < 5.0 A, "." denotes other aligned residues)
+--ANKTRELCMKSLEHAKVDTSNEARQDGIDLYKHMFENYPPLRKYFKSREEYTAEDVQNDPFFAKQGQKILLACHVLCATYDDRETFNAYTRELLDRHARDH-VHMPPEVWTDFWKLFEEYLGKKTT--LDEPTKQAWHEIGREFAKE-IN--K-
+  ::::::::::::::::.. . ..::::::::::::::::::::::: :: ::  ::  : ::::::::::::::::::::::::::::::::::::::::. ::::::::::::::::::::::::  ::::::::::::::::::: ::  .
+GLSAAQRQVVASTWKDIAGA-D-NGAGVGKECLSKFISAHPEMAAVFG-FS-GA--SD--P-GVAELGAKVLAQIGVAVSHLGDEGKMVAEMKAVGVRHKGYGNKHIKAEYFEPLGASLLSAMEHRIGGKMNAAAKDAWAAAYGDISGALISGLQS
+
+
+The (rotation, translation) matrix looks like this:
+
+cat matrix.txt
+ -------- Rotation matrix to rotate Chain_1 to Chain_2 ------
+ m          t(m)         u(m,1)         u(m,2)         u(m,3)
+ 1    -20.5720310015   0.3041357799   0.6084949658   0.7329633715
+ 2    -23.4973527840   0.9222606725   0.0046469628  -0.3865406287
+ 3     42.2311133600  -0.2386140802   0.7935441275  -0.5597776687
+ Code for rotating Chain_1 from (x,y,z) to (X,Y,Z):
+    do i=1,L
+      X(i)=t(1)+u(1,1)*x(i)+u(1,2)*y(i)+u(1,3)*z(i)
+      Y(i)=t(2)+u(2,1)*x(i)+u(2,2)*y(i)+u(2,3)*z(i)
+      Z(i)=t(3)+u(3,1)*x(i)+u(3,2)*y(i)+u(3,3)*z(i)
+    enddo
+
+
+Note how it says "Rotation matrix to rotate Chain_1 to Chain_2"; which protein
+is projected onto which is important, bc/ we have to apply the rotation matrix
+to __CHAIN 1__ here.
+
+Applying the transformation is relatively straightforward:
+
+structure.transform?? self.coord = np.dot(self.coord, rot) + tran
+
+Or
+
+def manual(coord, rot, tra):
+    x, y, z = coord
+    X = tra[0] + x*rot[0, 0] + y*rot[0, 1] + z*rot[0, 2] 
+    Y = tra[1] + x*rot[1, 0] + y*rot[1, 1] + z*rot[1, 2] 
+    Z = tra[2] + x*rot[2, 0] + y*rot[2, 1] + z*rot[2, 2]
+    return X, Y, Z
+
+Note that we use the PDB method .transform() and thus have to tanspose .T the
+matrix; the align_structures() fn will return the transposed matrix.
+'''
+def align_structures(query: Structure, target: Structure, mode=0, minscore=0.5):
     '''
     PyMOL just wraps programs as well:
 
@@ -82,8 +155,7 @@ def align_structures(target: Structure, query: Structure, mode=0, minscore=0.5):
     '''
     tmp = tempfile.TemporaryDirectory()
     p = tmp.name
-
-    print(f'Mode {mode}, min. Tm score {minscore}')
+    print(f'Aligning {Path(target).name} to {Path(query).name}')
 
     steps = [
         f'foldseek createdb {target} {p}/targetDB',
@@ -99,23 +171,14 @@ def align_structures(target: Structure, query: Structure, mode=0, minscore=0.5):
     with open(f'{p}/aln_tmscore.tsv', 'r') as file:
         qry, rest = next(file).strip().split('\t')
         ref, score, *rest = rest.split(' ')
-        print(f'Tm-score: {round(float(score), 4)}')
         rest = [float(i) for i in rest]
-        # translation = rest[:3]
         translation = rest[:3]
-        # translation = [-1*i for i in rest[:3]][::-1]
-        # translation[0] = translation[0]* -1
-        # translation[1] = translation[1]* -1  # good
-        # translation[2] = translation[2] * -1
-
-        # TODO: -1 much better
-        # translation = [-1*i for i in rest[:3]][::-1]
         rotation = list(chunks(rest[3:], 3))
-        print(rotation, translation)
-
+        # print(rotation, translation)
     tmp.cleanup()
 
-    return np.array(rotation), np.array(translation)
+    # Transpose rotation matrix!
+    return round(float(score), 4), np.array(rotation).T, np.array(translation)
 
 
 def transform_(structure: Structure, translation: np.ndarray, rotation: np.ndarray):

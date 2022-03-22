@@ -14,9 +14,11 @@ from foldvis.io import save_pdb
 
 
 class Fold():
-    def __init__(self, fp):
-        self.structure = self.read_pdb(fp)
+    def __init__(self, fp, quiet=True):
         self.path = Path(fp)
+        if not quiet:
+            print(f'Loading structure in {self.path.name}')
+        self.structure = self.read_pdb(self.path)
         self.transformed = False
         self.annotation = {}
 
@@ -39,11 +41,11 @@ class Fold():
         return structure
 
     def align_to(self, ref, mode=0, minscore=0.5):
-        rot, tra = align_structures(ref.path, self.path, mode=mode, minscore=minscore)
+        tmscore, rot, tra = align_structures(ref.path, self.path, mode=mode, minscore=minscore)
         cp = deepcopy(self)
         cp.structure.transform(rot, tra)
         cp.transformed = True
-        return cp
+        return tmscore, cp
 
     def rename_chains_(self, renames: dict) -> None:
         '''
@@ -103,6 +105,7 @@ class AlphaFold():
         # Load scores
         for i in files:
             model = int(re.match(r'.*model_(\d).pdb', i.name).group(1))
+            # print(f'Loading model {model}')
             fp = str(i.resolve())
             fp = fp.replace(f'{model}.pdb', f'{model}_scores.json')
             
@@ -118,10 +121,12 @@ class AlphaFold():
         # Rank models by pLDDT, best is reference
         ref, *queries = [i for i, j in sorted(d.items(), key=lambda x: x[1], reverse=True)]
 
+        print(f'Best model (pLDDT): {ref.path.name}')
+        print(f'Align remaining models to best and rename')
         # Align into the same space
         rest = []
         for qry, chain in zip(queries, 'BCDE'):
-            trx = qry.align_to(ref)
+            _, trx = qry.align_to(ref)
             trx.rename_chains_({'A': chain})
             rest.append(trx)
     
