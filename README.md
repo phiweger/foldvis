@@ -1,5 +1,9 @@
 ## Foldvis
 
+
+![](img/rabbit.png)
+
+
 Protein visualization without the pain. `Foldvis` currently supports `jupyter notebook`-based exploration of:
 
 - alignment of protein structures
