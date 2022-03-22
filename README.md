@@ -76,7 +76,7 @@ view.show()
 
 
 <p align="center">
-    <img src="img/overlay.png" width="250">
+    <img src="img/overlay.png" width="350">
 </p>
 
 
@@ -92,7 +92,7 @@ view.show()
 
 
 <p align="center">
-    <img src="img/alphafold.png" width="250">
+    <img src="img/alphafold.png" width="350">
 </p>
 
 
@@ -110,7 +110,7 @@ view.show()
 
 
 <p align="center">
-    <img src="img/NtoC.png" width="250">
+    <img src="img/NtoC.png" width="350">
 </p>
 
 
@@ -128,7 +128,7 @@ view.show()
 
 
 <p align="center">
-    <img src="img/variation.png" width="250">
+    <img src="img/variation.png" width="350">
 </p>
 
 
