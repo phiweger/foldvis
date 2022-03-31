@@ -1,17 +1,18 @@
 ## Foldvis
 
-
-<!-- https://gist.github.com/DavidWells/7d2e0e1bc78f4ac59a123ddf8b74932d -->
-<p align="center">
-    <img src="img/rabbit.png" alt="A rabbit" width="150">
-</p>
-
 Protein visualization without the pain. `Foldvis` currently supports `jupyter notebook`-based exploration of:
 
 - alignment of protein structures
 - color by label (pLDDT, N to C terminus)
 - display `AlphaFold2` model variance
 - load and display variation from a multiple sequence alignment
+
+<!-- https://gist.github.com/DavidWells/7d2e0e1bc78f4ac59a123ddf8b74932d -->
+<p align="center">
+    <img src="img/rabbit.png" alt="A rabbit" width="150">
+</p>
+
+^ The image is an origami rabbit, visualised using NMR at 2Å resolution. 
 
 The awesome `Anvio` has a [structure module](https://merenlab.org/2018/09/04/getting-started-with-anvio-structure/), should you be dissatisfied with `Foldvis`. However, I wanted a more lightweight tool, which to my knowledge did not exist, so I made one. PRs and suggestions welcome (also see TODOs below)!
 
@@ -137,4 +138,9 @@ view.show()
 - [ ] deposit `3Dmol.js` code locally instead of using CDN
 - [ ] install using `pip`
 - [ ] allow display of binding sites, like [here](https://merenlab.org/2020/07/22/interacdome/)
+- [ ] add [state sequence](https://github.com/steineggerlab/foldseek/issues/15) representing the structure
+- [ ] return a contact map, and common protein stats 
+- [ ] these are not of type "Structure" -- https://github.com/phiweger/foldvis/blob/main/foldvis/utils.py#L122
+- [ ] check that `foldseek` available
+- [ ] allow model selection
 
