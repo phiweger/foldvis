@@ -14,14 +14,14 @@ Protein visualization without the pain. `Foldvis` currently supports `jupyter no
 
 ^ The image is an origami rabbit, visualised using NMR at 2Å resolution. 
 
-The awesome `Anvio` has a [structure module](https://merenlab.org/2018/09/04/getting-started-with-anvio-structure/), should you be dissatisfied with `Foldvis`. However, I wanted a more lightweight tool, which to my knowledge did not exist, so I made one. PRs and suggestions welcome (also see TODOs below)!
+The awesome `Anvio` has a [structure module](https://merenlab.org/2018/09/04/getting-started-with-anvio-structure/), should you be dissatisfied with `Foldvis`. However, I wanted a more lightweight tool, which to my knowledge did not exist, so I made one. PRs and suggestions welcome (also see TODOs)!
 
 
 ### Install
 
 ```bash
 # Dependencies
-conda create -n foldvis -c bioconda -c conda-forge python=3.9 jupyter screed numpy biopython matplotlib py3dmol && conda activate foldvis
+conda create -n foldvis -c bioconda -c conda-forge python=3.9 jupyter screed numpy biopython matplotlib py3dmol hmmer && conda activate foldvis
 # Foldseek conda package not current version last time I checked
 # For Mac
 wget https://mmseqs.com/foldseek/foldseek-osx-universal.tar.gz; tar xvzf foldseek-osx-universal.tar.gz; export PATH=$(pwd)/foldseek/bin/:$PATH
@@ -32,9 +32,14 @@ git clone github.com/phiweger/foldvis
 cd foldvis
 pip install -e .
 
-# To run the example below
-unzip -d data/full data/full.zip
+# To run the examples below
 wget https://files.rcsb.org/download/1BXW.pdb
+
+# Get Pfam database (Version v31, this matters!)
+wget http://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam31.0/Pfam-A.hmm.dat.gz
+wget http://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam31.0/Pfam-A.hmm.gz
+gunzip *
+hmmpress Pfam-A.hmm.gz 
 ```
 
 
@@ -133,14 +138,45 @@ view.show()
 </p>
 
 
-### TODOs
 
-- [ ] deposit `3Dmol.js` code locally instead of using CDN
-- [ ] install using `pip`
-- [ ] allow display of binding sites, like [here](https://merenlab.org/2020/07/22/interacdome/)
-- [ ] add [state sequence](https://github.com/steineggerlab/foldseek/issues/15) representing the structure
-- [ ] return a contact map, and common protein stats 
-- [ ] these are not of type "Structure" -- https://github.com/phiweger/foldvis/blob/main/foldvis/utils.py#L122
-- [ ] check that `foldseek` available
-- [ ] allow model selection
+### Advanced usage
+
+A really cool idea is to map those parts of Pfam domains that are known (experimentally validated) to interact with ligands (ions, peptides, DNA, ...) to protein sequence and then see what spatial pattern this corresponds to when the sequence is folded into three dimensions:
+
+- https://academic.oup.com/nar/article/47/2/582/5232439
+- https://merenlab.org/2020/07/22/interacdome/
+- https://www.biorxiv.org/content/10.1101/2022.03.02.482602v1
+
+You can now do this in `foldvis` with little effort. To illustrate, let's mark all residues that are involved in the binding of zinc ions in the zinc finger protein (which binds three zinc atoms); see also `example_ligands.ipynb`:
+
+```python
+from foldvis.models import AlphaFold, Binding
+from foldvis.vis import *
+
+# TODO: Adjust file path
+fp = 'data/Pfam-A.hmm'
+
+# Load best zinc finger model from AF2 prediction
+af = AlphaFold('data/1AAY_alphafold')
+best = af.models[1]
+
+# Search bindin domains and align them to protein
+b = Binding(best, 'confident')
+b.predict_binding_(fp)
+
+# What domains have been found? Which ligands can be visualized?
+b.domains
+b.ligands
+
+# Map binding frequencies to protein
+bf = b.get_binding('PF00096.25', 'ZN')
+best.annotate_('bf', bf)
+
+view = plot_annotation(best, 'bf', palette='viridis', surface=True, opacity=1.)
+view.show()
+```
+
+<p align="center">
+    <img src="img/ligands.png" width="350">
+</p>
 

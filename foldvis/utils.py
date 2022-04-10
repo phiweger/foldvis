@@ -7,8 +7,9 @@ import tempfile
 
 from Bio.PDB import PDBIO
 from Bio.PDB.Structure import Structure
-
 import numpy as np
+
+from foldvis.parsers import HMMERStandardOutput
 
 
 def chunks(l, n):
@@ -240,5 +241,24 @@ def mean_pairwise_similarity(labels):
     '''
     l = [1 if i == j else 0 for i, j in combinations(labels, 2)]
     return round(sum(l) / len(l), 4)
+
+
+def search_domains(fold, hmms, cpus=8):
+    # hmmsearch -A aln.stk --cpu 8 --cut_ga --tblout 1AAY.tsv --domtblout 1AAY.dom.tsv ../Pfam-A.hmm rcsb_pdb_1AAY.fasta > result.txt
+
+    tmp = tempfile.TemporaryDirectory()
+    p = tmp.name
+
+    with open(f'{p}/query.faa', 'w+') as out:
+        out.write(f'>query\n{fold.sequence}\n')
+
+    steps = [
+        f'hmmsearch --cpu {cpus} --cut_ga {hmms} {p}/query.faa > {p}/found.txt'
+    ]
+    command = '; '.join(steps)
+    log = subprocess.run(command, capture_output=True, shell=True)
+    found = HMMERStandardOutput(f'{p}/found.txt')
+    tmp.cleanup()
+    return found.dom_hits
 
 

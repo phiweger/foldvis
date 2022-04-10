@@ -28,7 +28,15 @@ def plot_alphafold(af, width=400, height=300):
     return view
 
 
-def plot_annotation(model, label, palette='viridis', width=400, height=300):
+def map_colors(v, palette='viridis'):
+    norm = matplotlib.colors.Normalize(vmin=min(v), vmax=max(v), clip=True)
+    mapper = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap(palette))
+    
+    cols = [matplotlib.colors.to_hex(mapper.to_rgba(i)) for i in v]
+    return cols
+
+
+def plot_annotation(model, label, palette='viridis', surface=False, opacity=1., width=400, height=300):
     '''
     Available color maps:
 
@@ -62,9 +70,13 @@ def plot_annotation(model, label, palette='viridis', width=400, height=300):
         color = d[int(split[5])]
         l.append(color)
         idx = int(split[1])
-        view.setStyle({'model': -1, 'serial': i+1}, {"cartoon": {'color': color}})
+        view.setStyle({'model': -1, 'serial': i+1}, {'cartoon': {'color': color}})
         i += 1
         
+    if surface:
+        map_ = {(i+1): j for i, j in zip(range(len(model)), map_colors(anno, palette))}
+        view.addSurface(py3Dmol.VDW, {'opacity': opacity, 'colorscheme': {'prop': 'resi', 'map': map_}})
+
     view.zoomTo()
     return view
 

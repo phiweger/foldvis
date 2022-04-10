@@ -1,3 +1,4 @@
+from collections import defaultdict, Counter
 from copy import deepcopy
 import io
 import json
@@ -5,19 +6,23 @@ from pathlib import Path
 import re
 from typing import Union
 
-from Bio import PDB
+from Bio import PDB, SeqIO
 from Bio.PDB.Structure import Structure
 import numpy as np
+import pandas as pd
 
-from foldvis.utils import align_structures
 from foldvis.io import save_pdb
+from foldvis.parsers import HMMERStandardOutput
+from foldvis.utils import align_structures, search_domains
 
 
 class Fold():
     def __init__(self, fp, quiet=True):
         self.path = Path(fp)
+
         if not quiet:
             print(f'Loading structure in {self.path.name}')
+        self.sequence = self.read_sequence(self.path)
         self.structure = self.read_pdb(self.path)
         self.transformed = False
         self.annotation = {}
@@ -33,7 +38,28 @@ class Fold():
         '''Number of amino acids in the sequence'''
         return len(list(self.structure.get_residues()))
 
+    def read_sequence(self, fp: Union[str, Path]):
+        # https://www.biostars.org/p/435629/
+        with open(fp, 'r') as file:
+            l = []
+            for record in SeqIO.parse(file, 'pdb-atom'):
+                l.append(record.seq)
+            if len(l) > 1:
+                print('Warning: More than one sequence found, returning first')
+            return l[0].__str__()
+
     def read_pdb(self, fp: Union[str, Path], name: str='x') -> Structure:
+        '''
+        # https://biopython.org/wiki/The_Biopython_Structural_Bioinformatics_FAQ
+
+        p = PDBParser()
+        structure = p.get_structure("X", "pdb1fat.ent")
+        for model in structure:
+            for chain in model:
+                for residue in chain:
+                    for atom in residue:
+                        print(atom)
+        '''
         fp = Path(fp)
         assert fp.exists()
         pdb_parser = PDB.PDBParser(QUIET=True)
@@ -144,5 +170,158 @@ class AlphaFold():
                 _ = save_pdb(qry.structure, outdir / name)
     
         return [ref] + rest
+
+
+class Binding():
+    '''
+    f = Fold(...)
+    b = Binding(f, fp_interactions)
+    b.predict_binding_(fp_hmms)
+
+    - get sequeence from pdb file
+    - hmmsearch
+    - parse result
+    - align seqs
+    - expose (domain, ligand pairs)
+
+    d
+    # prints all interactions, same as
+    d.interactions
+    # Could be a dict
+    # ('PFxxxx', 'ZN'): [...] .. array of binding frequencies
+    # d.fold.sequence .. get original sequence
+    # type(d.fold) is Fold
+
+    interaction = d.get_interaction(['PFxxxx', 'ZN'])
+    interaction = d[('PFxxxx', 'ZN')]
+
+    view = plot_interaction(interaction)
+    '''
+    def __init__(self, fold, option='confident'):
+        self.fold = fold
+        self.options = {
+            'confident': 'InteracDome_v0.3-confident.tsv',
+            'representable': 'InteracDome_v0.3-representable.tsv',
+            'non-redundant': 'InteracDome_v0.3-representableNR.tsv',
+            }
+        self.interactions = self.read_interactions(self.options[option])
+
+    def read_interactions(self, fn):
+        fp = Path(__file__).parents[1] / f'data/ligands/{fn}'
+        df = pd.read_csv(fp, sep="\t", comment='#')
+        return df
+
+    def predict_binding_(self, hmms):
+        self.domains = search_domains(self.fold, hmms)
+        # TODO: filter?
+
+        # Note: By using a set we assume there are no two domain: ligand pairs
+        # for the same ligand, eg zinc binding to the start AND end of a domain.
+        ligands = defaultdict(set)
+        self._pfam_map = {}
+        '''
+        PF00096_zf-C2H2 NUCACID_
+        PF00096_zf-C2H2 DNABASE_
+        PF13894_zf-C2H2_4 DNABACKBONE_
+        PF13894_zf-C2H2_4 ZN
+        '''
+        for _, i in self.interactions.iterrows():
+            for j in set(self.domains['acc']):
+                # InteractDome does not preserve Pfam versions, they used v31
+                if j.split('.')[0] in i["pfam_id"]:
+                    # print(i.pfam_id, i.ligand_type)
+                    ligands[j].add(i.ligand_type)
+                    self._pfam_map[j] = i.pfam_id
+        
+        # "Turn off" defaultdict
+        self.ligands = dict(ligands)
+
+    def get_binding(self, domain, ligand):
+        '''
+        Returns binding frequencies for protein sequence of fold
+        '''
+        # Get binding frequencies for (domain, ligand) pair
+        result = np.zeros(len(self.fold))
+
+        n = self.interactions
+        bf = list(map(float, n[(n['pfam_id'] == self._pfam_map[domain]) & (n['ligand_type'] == ligand)]['binding_frequencies'].item().split(',')))
+        # Match query sequence residues to domain states
+        df = self.domains
+        # We can have multiple domain hits in one protein, even of the same
+        # domain, think zinc finger (PDB 1AAY).
+        for _, i in df[df['acc'] == domain].iterrows():
+            # We reverse the vector so when we pop()
+            u = bf[::-1]
+            v = []
+            for residue, state in zip(i.sequence_align, i.match_state_align):
+                if residue == '-':
+                    # Domain state not present in residue (inserted "-"s)
+                    _ = u.pop()
+                    continue
+
+                if state != '.':
+                    v.append(u.pop())
+                else:
+                    v.append(0.)
+
+            n_gaps = Counter(i.sequence_align)['-']
+            assert len(i.sequence_align) - n_gaps == len(v)
+            # d[(i.acc, j.ligand_type)] = u
+            result[i.ali_start-1:i.ali_stop] = v
+
+        return result
+            
+
+
+        
+
+'''
+
+
+with screed.open("rcsb_pdb_1AAY.fasta") as file:
+    for line in file:
+        seq = line.sequence
+        ln = len(seq)
+
+
+x = HMMERStandardOutput("result.txt")
+
+result = np.zeros(ln)
+
+# d = {}
+for _, i in x.dom_hits.iterrows():
+    sub = df[[i.acc.split('.')[0] in name for name in df['pfam_id']]]
+
+    for _, j in sub.iterrows():
+        if not j.ligand_type == 'ZN' or not i.acc == 'PF00096.25':
+            continue
+
+        v = list(map(float, j.binding_frequencies.split(',')))[::-1]
+        # We reverse the vector so when we pop() we get the first, then 2nd ...
+        print(seq[i.ali_start-1:i.ali_stop])
+    
+        print(i.sequence_align)
+        print(i.match_state_align)
+
+
+        u = []
+        for residue, state in zip(i.sequence_align, i.match_state_align):
+            if state != '.':
+                u.append(v.pop())
+            else:
+                u.append(0.)
+        assert len(i.sequence_align) == len(u)
+        # d[(i.acc, j.ligand_type)] = u
+        result[i.ali_start-1:i.ali_stop] = u
+
+
+with open('zinc.csv', 'w+') as out:
+    out.write(','.join(map(str, result)) + '\n')
+
+'''
+
+
+
+
 
 

@@ -1,8 +1,10 @@
+foldseek
+foldseek-osx-universal.tar.gz
+
 deprecated
 _deprecated.py
 example.py
 deprecated
-data/full
 
 # some data aspects
 *fai  # fasta indices
