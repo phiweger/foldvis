@@ -3,6 +3,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Union
 
+from Bio import PDB
 from Bio.PDB import PDBIO, Structure
 import screed
 
@@ -46,3 +47,24 @@ def load_conserved(fp, ref, metric=mean_pairwise_similarity):
             l.append(metric(residues))
 
     return l
+
+
+def read_pdb(fp: Union[str, Path], name: str='x') -> Structure:
+   '''
+   # https://biopython.org/wiki/The_Biopython_Structural_Bioinformatics_FAQ
+
+   p = PDBParser()
+   structure = p.get_structure("X", "pdb1fat.ent")
+   for model in structure:
+       for chain in model:
+           for residue in chain:
+               for atom in residue:
+                   print(atom)
+   '''
+   fp = Path(fp)
+   assert fp.exists()
+   # https://biopython.org/wiki/The_Biopython_Structural_Bioinformatics_FAQ
+   pdb_parser = PDB.PDBParser(QUIET=True, PERMISSIVE=0)
+   structure = pdb_parser.get_structure(name, str(fp))
+   return structure
+

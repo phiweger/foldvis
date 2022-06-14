@@ -67,6 +67,7 @@ def plot_annotation(model, label, palette='viridis', surface=False, opacity=1., 
         if len(split) == 0 or split[0] != "ATOM":
             continue
 
+        # print(split)
         color = d[int(split[5])]
         l.append(color)
         idx = int(split[1])

@@ -6,37 +6,79 @@ from pathlib import Path
 import re
 from typing import Union
 
-from Bio import PDB, SeqIO
+from Bio import SeqIO
 from Bio.PDB.Structure import Structure
 import numpy as np
 import pandas as pd
 
-from foldvis.io import save_pdb
+from foldvis.io import read_pdb, save_pdb
 from foldvis.parsers import HMMERStandardOutput
-from foldvis.utils import align_structures, search_domains
+from foldvis.utils import align_structures, search_domains, filter_aa
+
+
+class Complex():
+    '''
+    AF2 will predict complexes and name them chain A .. n
+    '''
+    def __init__(self, fp, quiet=True):
+        self.path = Path(fp)
+        self.structure = read_pdb(self.path)
+        self.chains = []
+        self.annotation = {}
+        
+        for chain in next(iter(self.structure)):
+            # for model in structure, for chain in model, ...
+            self.chains.append(chain)
+
+        positions = []
+        for chain in self.chains:
+            print(chain)
+            aa = filter_aa(chain)
+            p = [i+1 for i in range(len(aa))]
+            positions.extend(p)
+
+        self.len = len(positions)
+        self.annotate_('position', positions)
+        return None
+
+    def annotate_(self, key, values, check=True):
+        if check:
+            assert len(values) == len(self), 'No 1:1 mapping of labels to positions'
+        self.annotation[key] = values
+        return None
+
+    def __len__(self):
+        '''Number of amino acids in the sequence'''
+        # return len(list(self.structure.get_residues()))
+        return self.len
+
+    def to_stream(self):
+        stream = io.StringIO()
+        return save_pdb(self.structure, stream).getvalue()
 
 
 class Fold():
-    def __init__(self, fp, quiet=True):
+    def __init__(self, fp, quiet=True, annotate=True):
         self.path = Path(fp)
 
         if not quiet:
             print(f'Loading structure in {self.path.name}')
         self.sequence = self.read_sequence(self.path)
-        self.structure = self.read_pdb(self.path)
+        self.structure = read_pdb(self.path)
         self.transformed = False
         self.annotation = {}
 
-        ln = len(list(self.structure.get_residues()))
-        self.annotate_('position', [i+1 for i in range(ln)])
+        # 'ARNDCQEGHILKMFPSTWYV'
+        # SeqUtils.IUPACData.protein_letters_3to1[x]
+        if annotate:
+            aa = filter_aa(self.structure)
+            self.annotate_('position', [i+1 for i in range(len(aa))])
+        # ln = len(list(self.structure.get_residues()))
+        # self.annotate_('position', [i+1 for i in range(ln)])
         return None
 
     def __repr__(self):
         return 'Fold loaded from ' + self.path.name
-
-    def __len__(self):
-        '''Number of amino acids in the sequence'''
-        return len(list(self.structure.get_residues()))
 
     def read_sequence(self, fp: Union[str, Path]):
         # https://www.biostars.org/p/435629/
@@ -48,23 +90,10 @@ class Fold():
                 print('Warning: More than one sequence found, returning first')
             return l[0].__str__()
 
-    def read_pdb(self, fp: Union[str, Path], name: str='x') -> Structure:
-        '''
-        # https://biopython.org/wiki/The_Biopython_Structural_Bioinformatics_FAQ
-
-        p = PDBParser()
-        structure = p.get_structure("X", "pdb1fat.ent")
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    for atom in residue:
-                        print(atom)
-        '''
-        fp = Path(fp)
-        assert fp.exists()
-        pdb_parser = PDB.PDBParser(QUIET=True)
-        structure = pdb_parser.get_structure(name, str(fp))
-        return structure
+    def __len__(self):
+        '''Number of amino acids in the sequence'''
+        # return len(list(self.structure.get_residues()))
+        return len(self.sequence)
 
     def align_to(self, ref, mode=0, minscore=0.5):
         tmscore, rot, tra = align_structures(ref.path, self.path, mode=mode, minscore=minscore)
@@ -98,9 +127,9 @@ class Fold():
         stream = io.StringIO()
         return save_pdb(self.structure, stream).getvalue()
 
-    def annotate_(self, key, values, check=False):
+    def annotate_(self, key, values, check=True):
         if check:
-            assert len(values) == len(self)
+            assert len(values) == len(self), 'No 1:1 mapping of labels to positions'
         self.annotation[key] = values
         return None
 
@@ -139,7 +168,7 @@ class AlphaFold():
                 scores = json.load(file)
            
             fold = Fold(i)
-            _ = fold.annotate_('plddt', scores['plddt'])
+            fold.annotate_('plddt', scores['plddt'])
     
             v = np.mean(scores['plddt'])
             d[fold] = v
@@ -208,7 +237,7 @@ class Binding():
 
     def read_interactions(self, fn):
         fp = Path(__file__).parents[1] / f'data/ligands/{fn}'
-        df = pd.read_csv(fp, sep="\t", comment='#')
+        df = pd.read_csv(fp, sep='\t', comment='#')
         return df
 
     def predict_binding_(self, hmms):
@@ -267,6 +296,10 @@ class Binding():
             n_gaps = Counter(i.sequence_align)['-']
             assert len(i.sequence_align) - n_gaps == len(v)
             # d[(i.acc, j.ligand_type)] = u
+            # print(i.ali_start, i.ali_stop)
+            # print(len(v))
+            # print(len(result))
+            # print(len(result[i.ali_start-1:i.ali_stop]))
             result[i.ali_start-1:i.ali_stop] = v
 
         return result

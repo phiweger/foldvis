@@ -5,6 +5,7 @@ import subprocess
 from typing import Union
 import tempfile
 
+from Bio import SeqUtils
 from Bio.PDB import PDBIO
 from Bio.PDB.Structure import Structure
 import numpy as np
@@ -262,3 +263,12 @@ def search_domains(fold, hmms, cpus=8):
     return found.dom_hits
 
 
+def filter_aa(structure):
+    residues = []
+    aa = 'ARNDCQEGHILKMFPSTWYV'
+    for res in structure.get_residues():
+        x = res.get_resname()
+        x = x[0] + x[1:].lower()  # ALA > Ala
+        if SeqUtils.IUPACData.protein_letters_3to1[x] in aa:
+            residues.append(res)
+    return residues
