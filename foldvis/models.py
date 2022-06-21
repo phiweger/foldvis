@@ -118,10 +118,11 @@ class Fold():
                     print(f'Keeping chain name {old_name}, no new name found')
         return None
 
-    # def add_scores(self, d):
-    #     for k, v in d.items():
-    #         self.scores[k] = v        
-    #     return None
+    def add_scores(self, fp):
+        with open(fp, 'r') as file:
+            scores = json.load(file)
+            self.annotate_('plddt', scores['plddt'])
+        return None
 
     def to_stream(self):
         stream = io.StringIO()
