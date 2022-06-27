@@ -258,6 +258,7 @@ def search_domains(fold, hmms, cpus=8):
     ]
     command = '; '.join(steps)
     log = subprocess.run(command, capture_output=True, shell=True)
+    assert log.returncode == 0, log.stderr
     found = HMMERStandardOutput(f'{p}/found.txt')
     tmp.cleanup()
     return found.dom_hits
