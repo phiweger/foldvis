@@ -1,5 +1,10 @@
 ### TODO
 
+- [ ] consurf https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4987940/
+- [ ] positive and negative control
+    - https://elifesciences.org/articles/22709
+    - transferrin receptor (science paper iron piracy)
+    - pyoverdin/ ~ receptor paper (printed out)
 - [ ] plot annotation for complexes should have an option to either use a common color scale (plddt) or separate ones (position), ie one for each chain
 - [ ] COSMIS score of functional constraint https://www.nature.com/articles/s41467-022-30936-x#Sec12 -- delta simple conservation?
 - [ ] explore dnamic stuff:

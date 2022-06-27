@@ -9,9 +9,9 @@ def is_close(pos, fold, radius):
     '''
     residues = list(fold.structure.get_residues())
     ref = residues[pos]
-
+    a = ref.center_of_mass()
+    
     for res in residues:
-        a = ref.center_of_mass()
         b = res.center_of_mass()
         # https://stackoverflow.com/questions/1401712/how-can-the-euclidean-distance-be-calculated-with-numpy
         dist = np.linalg.norm(a - b)
