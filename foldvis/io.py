@@ -30,12 +30,23 @@ def save_pdb(structure: Structure, out: Union[str, Path, StringIO]) -> None:
         return None
 
 
-def load_conserved(fp, ref, metric=mean_pairwise_similarity):
+def load_conserved(fp, ref=None, metric=mean_pairwise_similarity):
+    '''
+    If no reference sequence name is provided, assume the first sequence is
+    the reference. Why do we even need to specify the reference? Bc/ in the MSA
+    it can contain gaps, which we'll omit bc/ we want to be able to map the
+    conservation values to the protein structure, which does not contain gaps
+    and we assume is identical to the reference sequence.
+    '''
     variance = defaultdict(list)
-    cnt = 0
+    cnt, ix = 0, -1
+    
     with screed.open(fp) as file:
+        if (not ref) and (cnt == 0):
+            ix = cnt
+
         for i in file:
-            if ref in i.name:
+            if (ref == i.name) and (ix != 0):
                 ix = cnt
             
             for pos, aa in enumerate(i.sequence):
