@@ -169,6 +169,7 @@ def align_structures(query: Structure, target: Structure, mode=0, minscore=0.5):
 
     command = '; '.join(steps)
     log = subprocess.run(command, capture_output=True, shell=True)
+    assert log.returncode == 0, log.stderr
 
     with open(f'{p}/aln_tmscore.tsv', 'r') as file:
         qry, rest = next(file).strip().split('\t')

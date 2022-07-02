@@ -1,4 +1,9 @@
+# import shutil
+import subprocess
+import tempfile
+
 import numpy as np
+import screed
 
 
 def is_close(pos, fold, radius):
@@ -10,7 +15,7 @@ def is_close(pos, fold, radius):
     residues = list(fold.structure.get_residues())
     ref = residues[pos]
     a = ref.center_of_mass()
-    
+
     for res in residues:
         b = res.center_of_mass()
         # https://stackoverflow.com/questions/1401712/how-can-the-euclidean-distance-be-calculated-with-numpy
@@ -21,30 +26,24 @@ def is_close(pos, fold, radius):
             yield False
 
 
+def get_foldseek_vae_states(fold):
+    '''
+    https://github.com/steineggerlab/foldseek/issues/15
+    '''
+    tmp = tempfile.TemporaryDirectory()
+    p = tmp.name
+    fp = fold.path.resolve().__str__()
+    print(fp)
 
+    steps = [
+        f'foldseek createdb {fp} {p}/db',
+        f'foldseek lndb {p}/db_h {p}/db_ss_h',
+        f'foldseek convert2fasta {p}/db_ss {p}/db_ss.fasta',
+    ]
+    command = '; '.join(steps)
+    log = subprocess.run(command, capture_output=True, shell=True)
+    assert log.returncode == 0, log.stderr
 
-
-
-'''
-As input we now need the site-wise number of synonymous and non-syn. substitutions of all residues in the protein. We should not write a routine but assume this has been come by on another manner.
-
-theory:
-
-- https://academic.oup.com/mbe/article/32/4/1097/1077799
-- https://pubmed.ncbi.nlm.nih.gov/16239014/
-- https://www.hyphy.org/resources/slides-selection-2016.pdf
-- https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1000304
-- BUSTED gene-wide selection https://academic.oup.com/mbe/article/32/5/1365/1134918?login=false
-
-tutorials: 
-
-- https://pubmed.ncbi.nlm.nih.gov/25388108/
-
-tools:
-
-- https://www.datamonkey.org/
-- https://github.com/rjorton/vnvs
-- https://github.com/im3sanger/dndscv
-
-'''
-
+    # shutil.copyfile(f'{p}/db_ss.fasta', outfile)
+    with screed.open(f'{p}/db_ss.fasta') as file:
+       return next(file).sequence
