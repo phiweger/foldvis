@@ -37,11 +37,17 @@ def load_conserved(fp, ref=None, metric=mean_pairwise_similarity):
     it can contain gaps, which we'll omit bc/ we want to be able to map the
     conservation values to the protein structure, which does not contain gaps
     and we assume is identical to the reference sequence.
+
+    Available functions:
+
+    - mean_pairwise_similarity
+    - entropy
     '''
     variance = defaultdict(list)
     cnt, ix = 0, -1
-    
+
     with screed.open(fp) as file:
+        # If no reference is provided, assume that the first sequence is ref.
         if (not ref) and (cnt == 0):
             ix = cnt
 

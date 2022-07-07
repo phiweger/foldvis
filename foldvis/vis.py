@@ -28,15 +28,22 @@ def plot_alphafold(af, width=400, height=300):
     return view
 
 
-def map_colors(v, palette='viridis'):
-    norm = matplotlib.colors.Normalize(vmin=min(v), vmax=max(v), clip=True)
+def map_colors(v, palette='viridis', limits=None):
+    
+    if not limits:
+        norm = matplotlib.colors.Normalize(vmin=min(v), vmax=max(v), clip=True)
+    else:
+        assert len(limits) == 2, 'Please supply limits like [0, 1], exit.'
+        norm = matplotlib.colors.Normalize(
+            vmin=limits[0], vmax=limits[1], clip=True)
+    
     mapper = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap(palette))
     
     cols = [matplotlib.colors.to_hex(mapper.to_rgba(i)) for i in v]
     return cols
 
 
-def plot_annotation(model, label, palette='viridis', surface=False, opacity=1., width=400, height=300):
+def plot_annotation(model, label, palette='viridis', surface=False, opacity=1., width=400, height=300, limits=None):
     '''
     Available color maps:
 
@@ -47,14 +54,17 @@ def plot_annotation(model, label, palette='viridis', surface=False, opacity=1., 
     
     # https://stackoverflow.com/questions/28752727/map-values-to-colors-in-matplotlib
     anno = model.annotation[label]
-    mn = min(anno)
-    mx = max(anno)
     
-    norm = matplotlib.colors.Normalize(vmin=mn, vmax=mx, clip=True)
-    mapper = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap(palette))
+    d = {k+1:c for k, c in enumerate(map_colors(anno, palette, limits))}
+
+    # mn = min(anno)
+    # mx = max(anno)
     
-    # Map colors to residues
-    d = {k+1: matplotlib.colors.to_hex(mapper.to_rgba(v)) for k, v in enumerate(anno)}
+    # norm = matplotlib.colors.Normalize(vmin=mn, vmax=mx, clip=True)
+    # mapper = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap(palette))
+    
+    # # Map colors to residues
+    # d = {k+1: matplotlib.colors.to_hex(mapper.to_rgba(v)) for k, v in enumerate(anno)}
     
     view = py3Dmol.view(width=width, height=height)
     # view.addModelsAsFrames(stream)
@@ -70,12 +80,12 @@ def plot_annotation(model, label, palette='viridis', surface=False, opacity=1., 
         # print(split)
         color = d[int(split[5])]
         l.append(color)
-        idx = int(split[1])
+        # idx = int(split[1])
         view.setStyle({'model': -1, 'serial': i+1}, {'cartoon': {'color': color}})
         i += 1
         
     if surface:
-        map_ = {(i+1): j for i, j in zip(range(len(model)), map_colors(anno, palette))}
+        map_ = {(i+1): j for i, j in zip(range(len(model)), map_colors(anno, palette, limits))}
         view.addSurface(py3Dmol.VDW, {'opacity': opacity, 'colorscheme': {'prop': 'resi', 'map': map_}})
 
     view.zoomTo()
