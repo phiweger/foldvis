@@ -77,5 +77,5 @@ def distance_to_closest_active_site(fold, binding_frequencies, threshold=0.5):
         d = np.min([euclidean_distance(rm, a.center_of_mass()) for a in active])
         l.append(float(d))
     
-    return
+    return l
 
