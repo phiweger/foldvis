@@ -73,8 +73,9 @@ def distance_to_closest_active_site(fold, binding_frequencies, threshold=0.5):
 
     l = []
     for r in residues:
-        d = np.min(
-            [dist(r.center_of_mass(), a.center_of_mass()) for a in active])
+        m1 = r.center_of_mass()
+        m2 = a.center_of_mass()
+        d = np.min([euclidean_distance(m1, m2) for a in active])
         l.append(d)
     
     return(l)
