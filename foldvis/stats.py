@@ -90,10 +90,17 @@ def Gi_star(w_ij, features, pos):
     return G, Z
 
 
-def cluster(fold, mask, min_cluster_size=2):
+def cluster(fold, mask, *args, **kwargs):
+    '''
+    from foldvis.stats import cluster
+    from foldvis.geometry import get_alpha_carbon_atoms
+
+    mask = [1 if i < 0.05 else 0 for i in d['meme']['positive']['scores']]
+    cluster(model, mask, min_cluster_size=2)
+    '''
     points = list(get_alpha_carbon_atoms(fold, only_coords=True))
     X = [i for i, j in zip(points, mask) if j]
-    clusterer = HDBSCAN(min_cluster_size=min_cluster_size)
+    clusterer = HDBSCAN(*args, **kwargs)
     return clusterer.fit_predict(X)
 
 
@@ -112,3 +119,10 @@ enrichment: given spatial clusters, are they enriched in any feature?
 - solvent accessibility
 - interface
 '''
+
+
+'''
+TODO: We could feed the clusters to the Getis-Ord statistic or calculate eg
+the (adjusted) Rand score.
+'''
+
