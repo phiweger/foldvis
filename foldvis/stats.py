@@ -1,6 +1,7 @@
+from hdbscan import HDBSCAN
 import numpy as np
 
-from foldvis.geometry import is_close
+from foldvis.geometry import get_alpha_carbon_atoms 
 
 
 def spatial_association(fold, features, statistic='Gi', radius=8, coordinates='alpha_carbons'):
@@ -87,6 +88,14 @@ def Gi_star(w_ij, features, pos):
     Z = (G-E) / np.sqrt(Var)
     
     return G, Z
+
+
+def cluster(fold, mask, min_cluster_size=2):
+    points = list(get_alpha_carbon_atoms(fold, only_coords=True))
+    X = [i for i, j in zip(points, mask) if j]
+    clusterer = HDBSCAN(min_cluster_size=min_cluster_size)
+    return clusterer.fit_predict(X)
+
 
 
 '''
