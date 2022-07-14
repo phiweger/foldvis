@@ -1,7 +1,7 @@
 from hdbscan import HDBSCAN
 import numpy as np
 
-from foldvis.geometry import get_alpha_carbon_atoms 
+from foldvis.geometry import is_close, get_alpha_carbon_atoms 
 
 
 def spatial_association(fold, features, statistic='Gi', radius=8, coordinates='alpha_carbons'):
