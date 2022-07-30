@@ -19,6 +19,8 @@ from foldvis.utils import align_structures, search_domains, filter_aa
 class Complex():
     '''
     AF2 will predict complexes and name them chain A .. n
+
+    TODO: A Complex object should be made up of two or more Fold objects
     '''
     def __init__(self, fp, quiet=True):
         self.path = Path(fp)

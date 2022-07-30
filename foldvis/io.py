@@ -1,5 +1,6 @@
 from collections import defaultdict
 from io import StringIO
+import json
 from pathlib import Path
 from typing import Union
 
@@ -111,4 +112,40 @@ def load_bfactor_column(fp):
     
     return [i for i, j in d.values()]
 
+
+def parse_hyphy(fp, method='meme', direction='positive', skip=[]):
+    '''
+    TODO: Just count the number of "MEME" or "FUBAR" in the results file to
+    infer the program that was used.
+
+    skip .. use e.g. to mask gaps in an alignment, needs to be some form of
+    binary iterator (eg [0, 0, 0, 1, 0, 0, 0, ...])
+    '''
+    with open(fp, 'r') as file:
+        d = json.load(file)
+
+    if method == 'meme':
+        # p-value
+        assert direction == 'positive', 'The MEME method does not estimate negative selection'
+        scores = [i[6] for i in d['MLE']['content']['0']]
+        
+
+    elif method == 'fubar':
+        # posterior probability
+        neg, pos = zip(*[i[3:5] for i in d['MLE']['content']['0']])
+        if direction == 'positive':
+            scores = pos
+        elif direction == 'negative':
+            scores = neg
+        else:
+            raise ValueError('Direction must be positive or negative.')
+
+    else:
+        raise ValueError('Method not implemented')
+
+    if skip:
+        assert len(skip) == len(scores), 'Mask has wrong dimensions'
+        scores = [p for p, sk in zip(scores, skip) if not sk]
+
+    return scores
 

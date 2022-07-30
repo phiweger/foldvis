@@ -37,6 +37,13 @@ def get_coordinate(x: Union[Atom, Residue]):
         raise ValueError('Unsupported type')
 
 
+def euclidean_distance(a, b):
+    '''
+    https://stackoverflow.com/questions/1401712/how-can-the-euclidean-distance-be-calculated-with-numpy
+    '''
+    return np.linalg.norm(a-b)
+
+
 def is_close(pos, fold, radius, coordinates='alpha_carbons'):
     '''
     fold = Fold('test_676a7_unrelaxed_rank_1_model_2.pdb')
@@ -68,7 +75,8 @@ def is_close(pos, fold, radius, coordinates='alpha_carbons'):
     for i in chain:
         b = get_coordinate(i)
         # https://stackoverflow.com/questions/1401712/how-can-the-euclidean-distance-be-calculated-with-numpy
-        dist = np.linalg.norm(a - b)
+        # dist = np.linalg.norm(a - b)
+        dist = euclidean_distance(a, b)
         if dist < radius:
             yield True
         else:
@@ -95,13 +103,6 @@ def get_foldseek_vae_states(fold):
     # shutil.copyfile(f'{p}/db_ss.fasta', outfile)
     with screed.open(f'{p}/db_ss.fasta') as file:
        return next(file).sequence
-
-
-def euclidean_distance(a, b):
-    '''
-    https://stackoverflow.com/questions/1401712/how-can-the-euclidean-distance-be-calculated-with-numpy
-    '''
-    return round(np.linalg.norm(a-b), 4)
 
 
 def distance_to_closest_active_site(fold, binding_frequencies, threshold=0.5):
