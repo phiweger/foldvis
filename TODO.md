@@ -1,5 +1,7 @@
 ### TODO
 
+- ENA API wrapper to get the AF2 proteins by ID
+- [ ] `fold.to_dataframe()` for easy integration with `sklearn` and `altair`
 - [ ] consurf https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4987940/
 - [ ] positive and negative control
     - https://elifesciences.org/articles/22709

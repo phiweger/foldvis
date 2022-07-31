@@ -1,3 +1,4 @@
+import collections
 from itertools import combinations
 from math import log, e
 from pathlib import Path
@@ -274,3 +275,37 @@ def filter_aa(structure):
         if SeqUtils.IUPACData.protein_letters_3to1[x] in aa:
             residues.append(res)
     return residues
+
+
+def flatten(d, parent_key='', sep='_', expected_track_length=None):
+    '''
+    - https://stackoverflow.com/questions/6027558/flatten-nested-dictionaries-compressing-keys
+    - https://stackoverflow.com/questions/12555323/how-to-add-a-new-column-to-an-existing-dataframe
+
+    df = pd.DataFrame.from_dict(flatten(d, expected_track_length=len(model)))
+    df = df.assign(selection=pd.Series(anno).values)
+    '''
+    items = []
+    for k, v in d.items():            
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    
+    if not expected_track_length:
+        return dict(items)
+
+    else:
+        cleaned = {}
+        for k, v in dict(items).items():
+            try:
+                if len(v) == expected_track_length and type(v) != str:
+                    cleaned[k] = v
+            except TypeError:
+                # TypeError: object of type 'float' has no len()
+                continue
+        return cleaned
+                
+
+

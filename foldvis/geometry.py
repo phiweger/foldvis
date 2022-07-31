@@ -5,8 +5,11 @@ from typing import Union
 
 from Bio.PDB.Residue import Residue
 from Bio.PDB.Atom import Atom
+from libpysal.weights import DistanceBand
 import numpy as np
 import screed
+
+from foldvis.geometry import get_coordinate, is_close, euclidean_distance
 
 
 def get_alpha_carbon_atoms(fold, only_coords=False):
@@ -127,5 +130,54 @@ def distance_to_closest_active_site(fold, binding_frequencies, threshold=0.5):
         d = np.min([euclidean_distance(rm, a.center_of_mass()) for a in active])
         l.append(float(d))
     
+    return l
+
+
+def get_complex_interface(cx, angstrom=10):
+    '''
+    from foldvis.models import Complex
+    from foldvis.geometry import get_complex_interface
+
+    cx = Complex('/path/to/model.pdb')
+    interface = get_complex_interface(cx, 10)
+    '''
+    coords = []
+    labels = []
+    for chain in cx.chains:
+        # TODO: Add a more general iterator, for both complexes and single folds
+        for atom in chain.get_atoms():
+            if atom.get_id() == 'CA':
+                coords.append(get_coordinate(atom))
+                labels.append(chain.id)
+                
+    lu = {i: j for i, j in enumerate(labels)}
+    dist = DistanceBand(coords, 10, p=2, binary=True)
+    assert len(dist.neighbors.keys()) == len(cx)
+    
+    interface = set()
+    for k, v in dist.neighbors.items():
+        origin = lu[k]
+        for i in v:
+            if lu[i] != origin and origin == 'B':
+                interface.add(k)
+    
+    return interface
+
+
+def distance_to_positions(model, positions):
+    '''
+    from foldvis.models import Complex
+    from foldvis.geometry import get_complex_interface, distance_to_positions
+
+    cx = Complex('/path/to/model.pdb')
+    interface = get_complex_interface(cx, 10)
+    distance_to_interface = distance_to_positions(model, interface)
+    '''
+    atoms = list(get_alpha_carbon_atoms(model, only_coords=True))
+    l = []
+    for atom in atoms:
+        # Restrict positions to only those in the protein structure, ignore the rest
+        dist = np.min([euclidean_distance(atom, atoms[p]) for p in positions if p in range(len(model))])
+        l.append(dist)
     return l
 

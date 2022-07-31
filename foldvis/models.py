@@ -82,6 +82,9 @@ class Fold():
     def __repr__(self):
         return 'Fold loaded from ' + self.path.name
 
+    def __iter__(self):
+        yield from self.structure
+
     def read_sequence(self, fp: Union[str, Path]):
         # https://www.biostars.org/p/435629/
         with open(fp, 'r') as file:
